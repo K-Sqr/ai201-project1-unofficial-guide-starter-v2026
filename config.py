@@ -31,6 +31,18 @@ CORPUS = os.getenv("AI201_CORPUS", "campus_life")
 CHUNK_SIZE = 800        # characters per chunk
 CHUNK_OVERLAP = 120     # characters shared between neighbouring chunks
 
+# Used by chunker.py::split_documents (my chunker). The two numbers above stay
+# as they were so fallback_split is still the untouched baseline for unit 2.
+#
+# One chunk per paragraph. The longest body paragraph in campus_life is 373
+# characters, so this cap never fires on the shipped corpus. It's a guard
+# against a runaway paragraph, split at sentence ends.
+#
+# There is no character overlap. Instead every chunk starts with its post's
+# title line, so "Hours are 7:00am to 9:00pm" still says which dining hall it's
+# about.
+PARAGRAPH_MAX_CHARS = 400
+
 
 # ─── Retrieval (Milestone 4) ─────────────────────────────────────────────────
 

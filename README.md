@@ -29,18 +29,44 @@
 
 ## Chunking Strategy
 
-**Chunk size:**
-**Overlap:**
+**Chunk size:** one paragraph per chunk, with the post's title line in front
+of it. Paragraphs are capped at 400 characters and split at sentence ends if
+longer. The longest paragraph in campus_life is 373, so the cap never fires on
+this corpus. That produces 183 chunks, averaging 167 characters (shortest 63,
+longest 397).
+**Overlap:** 0 characters. The only thing neighbouring chunks share is the
+title line, which is repeated in front of every chunk from the same post.
 
-<!-- What about YOUR documents made you pick these numbers? Short posts and
-     long sectioned guides don't want the same chunking, and "800 seemed
-     reasonable" earns nothing. Point at something you noticed when you read
-     the documents in Milestone 1.
+**What in the documents made me pick this.** The starter's 800-character
+windows made 88 chunks from 88 documents. No campus_life post is longer than
+563 characters, so `fallback_split` never cut anything, and each whole post
+became one chunk. When I read the posts, though, most of them are a title line
+followed by 2–4 short paragraphs, each on a different topic:
 
-     If you changed your mind partway through, say so and say why. That's worth
-     more than pretending you got it right first time.
+- `dining_kestrel_commons.txt` has wait times and the stir-fry station in the
+  first paragraph, then hours and cost ("Costs one meal swipe, or $12.50 cash")
+  in the second.
+- The housing posts are split into "The good:", "The bad:", and then laundry
+  and noise, each its own paragraph.
 
-     Milestone 3. -->
+With one chunk per post, a question about Kestrel's hours was matched against a
+chunk that was mostly about queues. Splitting on the blank line keeps each
+topic whole, and no sentence is ever cut in half.
+
+Splitting had one cost. A second paragraph such as "Hours are 7:00am to 9:00pm
+weekdays..." never says which dining hall it's about; only the title does. So
+instead of a character overlap, which would just bring in the end of the
+wait-times paragraph, every chunk starts with its post's title. That's also why
+I didn't merge the short paragraphs. The shortest body paragraph is 36
+characters ("Expect 4 hours a week outside class." in
+`course_econ_101.txt`), but with "ECON 101 …" in front of it, it answers a
+workload question on its own.
+
+**Changed my mind:** I first planned to merge any paragraph under ~120
+characters into its neighbour, because 120 is close to the median paragraph
+length (112). But the short paragraphs turned out to be the most answerable
+ones: one fact, once the title is in front. Merging them would have put the
+two-topics-in-one-chunk problem back.
 
 ## Sample Chunks
 
@@ -53,30 +79,53 @@
 
      Milestone 3. -->
 
-**Chunk 1** — source: `` — produced by: ``
+From `python app.py chunks -n 5` (183 chunks total, sampled across the corpus).
+
+**Chunk 1** — source: `admin_add_drop_deadline.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+On the add/drop deadline
+
+You can add a course through the end of the second week. Dropping is a longer window — through the end of week six — but a drop after week two shows as a W on your transcript. Nothing anywhere on the registrar's site says this plainly, and students find out from each other.
 ```
 
-**Chunk 2** — source: `` — produced by: ``
+**Chunk 2** — source: `course_cs_340_exams.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+CS 340 Databases — assessment
+
+Start the term project in week three, not week eight; everyone learns this the hard way.
 ```
 
-**Chunk 3** — source: `` — produced by: ``
+**Chunk 3** — source: `course_phys_130_workload.txt#0` — produced by: `chunker.py::split_documents`
 
 ```
+Workload for PHYS 130 Mechanics
+
+People keep asking so: 7 hours a week, plus 3 on lab weeks. That's real time, not optimistic time.
 ```
 
-**Chunk 4** — source: `` — produced by: ``
+**Chunk 4** — source: `dining_verrill_street_grill_followup.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+Re: Verrill Street Grill
+
+Also worth saying: one register, so the queue is a single line no matter how busy. Nobody tells you this at orientation.
 ```
 
-**Chunk 5** — source: `` — produced by: ``
+**Chunk 5** — source: `housing_morrow_house.txt#1` — produced by: `chunker.py::split_documents`
 
 ```
+Morrow House — what it's actually like
+
+The good: cheapest housing tier by about $900 a year, and the singles are real singles.
 ```
+
+Each one answers a question on its own: when the drop window closes and what
+a late drop costs (1), when to start the CS 340 project (2), PHYS 130 weekly
+hours (3), how the Verrill Street Grill queue works (4), and Morrow House's
+price advantage (5). Chunks 2, 4 and 5 are second paragraphs. Without the title
+line they wouldn't say which course, restaurant or building they're about.
 
 ## Sample Answer
 

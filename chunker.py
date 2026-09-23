@@ -22,6 +22,7 @@ to it, write down what you saw, and move on. That's a real observation about
 your pipeline, not giving up.
 """
 
+import re
 from dataclasses import dataclass
 
 import config
@@ -80,24 +81,62 @@ def fallback_split(
     return chunks
 
 
+def _split_long(paragraph: str, limit: int) -> list[str]:
+    """Break an over-long paragraph at sentence ends, never mid-sentence."""
+    sentences = re.split(r"(?<=[.!?])\s+", paragraph)
+    pieces: list[str] = []
+    current = ""
+    for sentence in sentences:
+        if current and len(current) + 1 + len(sentence) > limit:
+            pieces.append(current)
+            current = sentence
+        else:
+            current = f"{current} {sentence}".strip()
+    if current:
+        pieces.append(current)
+    return pieces
+
+
 def split_documents(documents: list[Document]) -> list[Chunk]:
     """
-    Split documents into chunks. ⚠️ REPLACE THE BODY OF THIS IN MILESTONE 3.
+    One chunk per paragraph, each prefixed with the post's title line.
 
-    Right now it just calls the fallback. That is the plain, generic behaviour
-    the brief is talking about.
+    campus_life posts are a title line and then one to four short paragraphs,
+    and each paragraph is its own topic. Kestrel Commons, for example, has
+    wait times in one paragraph and hours and cost in the next. Splitting on
+    the blank line keeps each topic whole. Putting the title in front of each
+    piece means a paragraph like "Hours are 7:00am to 9:00pm weekdays" still
+    says which building it is about. That title is the only thing neighbouring
+    chunks share, so there is no character overlap.
 
-    When you write your own strategy, set `produced_by` to
-    "chunker.py::split_documents" so your README's Sample Chunks section names
-    the right function. `app.py chunks` prints that string for you.
-
-    Things worth thinking about before you write any code:
-      - Are your documents short posts or long guides?
-      - Is the useful information in one sentence, or spread over a paragraph?
-      - Would splitting on paragraph breaks keep more thoughts intact than
-        splitting on a character count?
+    A post with no blank line after its title stays whole. A paragraph over
+    PARAGRAPH_MAX_CHARS is broken at sentence ends.
     """
-    return fallback_split(documents)
+    limit = config.PARAGRAPH_MAX_CHARS
+
+    chunks: list[Chunk] = []
+    for doc in documents:
+        blocks = [b.strip() for b in doc.text.split("\n\n") if b.strip()]
+        if len(blocks) < 2:
+            bodies, title = blocks, ""
+        else:
+            title, bodies = blocks[0], blocks[1:]
+
+        index = 0
+        for body in bodies:
+            for piece in _split_long(body, limit):
+                text = f"{title}\n\n{piece}" if title else piece
+                chunks.append(
+                    Chunk(
+                        text=text,
+                        source=doc.source,
+                        index=index,
+                        produced_by="chunker.py::split_documents",
+                    )
+                )
+                index += 1
+
+    return chunks
 
 
 def describe(chunks: list[Chunk]) -> str:
