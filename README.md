@@ -2,30 +2,21 @@
 
 **K-Sqr** · corpus: `campus_life`
 
-> **This file is your submission.** Fill it in as you go — most sections get
-> written during the milestone that produces them, not at the end.
->
-> How the starter works, and every command you'll need, is in `RUNNING.md`.
-> Leave that file alone.
->
-> **Paste everything as text.** No screenshots, no video. A typed table gets
-> full credit; a picture of the same table gets none.
->
-> Delete these instruction blocks as you replace them. The `<!-- -->` comments
-> are notes to you and don't show up when the page renders — you can leave them
-> or remove them.
-
 ---
 
 # Unit 1
 
 ## What This Does
 
-<!-- Three or four sentences. Which corpus you picked, and the kinds of
-     questions your system answers. Write it for someone who has never seen
-     this repo.
-
-     Milestone 5. -->
+This is a question-answering system over `campus_life`, 88 short posts by
+students about life at one university: dining halls, dorms, courses, and the
+administrative rules nobody explains properly. It answers specific, factual
+questions whose answer sits in one or two sentences of a post. Examples: "How
+long is the lunch wait at Kestrel Commons?", "How late can I declare pass/fail?",
+"How much is laundry in Aldridge Hall?", "When does the library close during
+reading week?" Every answer names the file it came from. If nothing in the
+corpus is close enough to the question, the system replies "I don't have enough
+information about that" and doesn't guess.
 
 ## Chunking Strategy
 
@@ -69,15 +60,6 @@ ones: one fact, once the title is in front. Merging them would have put the
 two-topics-in-one-chunk problem back.
 
 ## Sample Chunks
-
-<!-- Five chunks, pasted as text. Label each one and name the file it came from
-     AND the function that produced it — the grader checks your code against
-     what you claim here.
-
-     `python app.py chunks -n 5` prints all three for you. Copy them straight
-     across.
-
-     Milestone 3. -->
 
 From `python app.py chunks -n 5` (183 chunks total, sampled across the corpus).
 
@@ -128,9 +110,6 @@ price advantage (5). Chunks 2, 4 and 5 are second paragraphs. Without the title
 line they wouldn't say which course, restaurant or building they're about.
 
 ## Sample Answer
-
-<!-- One complete question and answer, pasted as text, with the source line
-     visible. Milestone 4. -->
 
 **Question:** How much does a wash cost in the Aldridge Hall laundry room?
 
@@ -206,18 +185,35 @@ I don't have enough information to answer whether Kestrel Commons serves halal f
 
 ## How I Used AI
 
-<!-- Two specific moments. For each: what you asked for, what came back, and
-     what you changed about it.
+I used Claude Code (Claude Opus 5.5) in my terminal for most of this unit.
 
-     "I asked Claude to write the chunking function from my notes. It ignored
-     the overlap, so I added that myself" is the level of detail we're after.
-     "I used AI to help me code" is not.
+**1. Getting the environment to install.** I pasted the Windows setup commands
+from `RUNNING.md` and asked Claude to run them. `pip install` failed:
+`chroma-hnswlib` has no prebuilt wheel for Python 3.13 on Windows, so pip tried
+to compile it and needed Microsoft C++ Build Tools. Claude found that I also
+had Python 3.11 installed and told me to create the venv with
+`py -3.11 -m venv .venv`. I asked it to stop and undo everything, then ran the
+commands myself. That failed again, because I was in Git Bash, where
+`.venv\Scripts\Activate.ps1` loses its backslashes and can't run a PowerShell
+script anyway. So every `pip install` kept going into my system Python 3.13.
+Claude gave me the bash version (`source .venv/Scripts/activate`). The last
+thing I changed was running that on its own and checking `python --version`
+before installing. That's how I found out that creating the venv hadn't
+activated it.
 
-     Milestone 5. -->
-
-**1.**
-
-**2.**
+**2. Building milestones 3 and 4.** I gave Claude the milestone brief and the
+grading page and asked it to finish the build. It read the documents, measured
+paragraph lengths, and wrote `split_documents`. Its first plan was to merge any
+paragraph under ~120 characters into its neighbour. It dropped that after
+finding that the shortest paragraphs ("Expect 4 hours a week outside class.")
+were single facts that only needed the title line in front of them. It then
+measured the ten distances and, beyond the brief, the five near-miss
+questions. That's why the cutoff is 0.5 and not 0.6. It would not write
+criteria 4 and 5, because the brief says not to have an AI write them, so
+those were left to me. I also changed how it committed: I asked for a commit and push
+after each milestone rather than one push at the end, and I had it take the
+AI co-author line out of the commit messages. That's why the AI use is
+described here instead of in the commits.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
