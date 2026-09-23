@@ -22,12 +22,28 @@ names a target of "4 of 5", and four of three is not a thing.
 """
 
 QUESTIONS = [
-    # {"question": "...", "expects": "..."},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
-    {"question": "", "expects": ""},
+    {
+        "question": "How long is the wait at Kestrel Commons between 12:15 and 1:00?",
+        "expects": "20 to 25 minutes",
+    },
+    {
+        "question": "How late in the semester can I declare a course pass/fail?",
+        "expects": "week eight",
+    },
+    # Seven housing_*_laundry.txt posts are near-identical in wording, so this
+    # one tests whether retrieval picks the right building, not just the topic.
+    {
+        "question": "How much does a wash cost in the Aldridge Hall laundry room?",
+        "expects": "$1.75",
+    },
+    {
+        "question": "What is the last week I can withdraw from a course?",
+        "expects": "week ten",
+    },
+    {
+        "question": "What time does the library close during reading week?",
+        "expects": "10pm",
+    },
 ]
 
 # Questions from a different world entirely. Your gate should refuse all five.

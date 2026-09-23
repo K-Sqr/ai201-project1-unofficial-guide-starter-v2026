@@ -23,8 +23,12 @@ For at least 4 of my 5 test questions, the retrieved chunks include one that
 contains the answer.
 
 **Why this target:**
-<!-- e.g. "One of my questions is about a topic only two documents mention, so
-     I expect that one to be hard." -->
+Four of my five questions each have one document that answers them. The
+Aldridge Hall laundry question doesn't work that way: campus_life has seven
+`housing_*_laundry.txt` posts written almost word for word the same ("Machines
+take $X wash, $Y dry..."), so retrieval can easily bring back another building's
+laundry post instead. I expect that one to fail sometimes. That's why the
+target is 4 of 5 rather than 5 of 5.
 
 ---
 
@@ -33,8 +37,12 @@ contains the answer.
 Every answer the system produces names at least one source document.
 
 **Why this target:**
-<!-- Why all five and not four? What about your setup makes that achievable —
-     or what would have to go wrong for it not to be? -->
+All five, not four. `generate.py::build_prompt` puts `[from <filename>]` in
+front of every excerpt, and `GROUNDING_INSTRUCTION` tells the model to name the
+file. So every answer that gets past the gate has the filenames right there in
+its prompt. The only way to miss is for the model to ignore an instruction it
+was given directly. If that happens even once, the pipeline has a real problem,
+so I'm not allowing for one miss.
 
 ---
 
