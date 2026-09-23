@@ -58,8 +58,13 @@ in at least 4 of 5 tries.
      just keep five of them, or the "4 of 5" above has nothing to be 4 of. -->
 
 **Why this target:**
-<!-- What did your distances look like when you set the cutoff in Milestone 4?
-     Was there a clean gap, or did the two groups overlap? -->
+In Milestone 4 the five OUT_OF_SCOPE questions had best distances of
+0.787–0.923, and my cutoff is 0.5. There's a clean gap, so I expect 5 of 5. The
+target is 4 of 5 rather than 5 of 5 because I lowered the cutoff from 0.6 to
+0.5 to catch on-topic near misses. If I change the chunker in unit 2, the
+distances move, and I'm allowing for one question to shift. For even one to
+slip through, its best distance would have to drop from at least 0.787 to below
+0.5. If two slipped through, the gate would be broken, not just unlucky.
 
 ---
 

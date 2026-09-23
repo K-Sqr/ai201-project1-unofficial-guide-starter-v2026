@@ -132,27 +132,77 @@ line they wouldn't say which course, restaurant or building they're about.
 <!-- One complete question and answer, pasted as text, with the source line
      visible. Milestone 4. -->
 
-**Question:**
+**Question:** How much does a wash cost in the Aldridge Hall laundry room?
 
 **Answer:**
 
 ```
+$ python app.py ask "How much does a wash cost in the Aldridge Hall laundry room?"
+  (best distance 0.218, cutoff 0.5)
+
+A wash costs $1.75 in Aldridge Hall (housing_aldridge_hall.txt and housing_aldridge_hall_laundry.txt).
+
+Sources retrieved: housing_aldridge_hall.txt, housing_aldridge_hall_laundry.txt, housing_innisfree_hall.txt, housing_innisfree_hall_laundry.txt, housing_old_brewhouse.txt
 ```
 
-**My relevance cutoff:**
+I picked this one because it was the question I expected to break. campus_life
+has seven laundry posts with almost the same wording. Retrieval still ranked
+both Aldridge chunks first (0.218, 0.226), above Old Brewhouse ($1.50 wash) and
+Innisfree Hall ($1.75 wash, $1.75 dry). My guess is that this comes from the
+title line on every chunk: "Laundry in Aldridge Hall" is the only thing that
+tells those seven paragraphs apart.
 
-<!-- The number you set in config.py, and how you got there.
+**My relevance cutoff:** `THRESHOLD = 0.5` in `config.py` (the starter had 0.6).
 
-     You ran five questions your corpus covers and the five in OUT_OF_SCOPE
-     that it clearly doesn't, and wrote down the best distance for each. What
-     did those two groups look like? Where was the gap? Put the actual numbers
-     here — the table below wants all ten rows.
-
-     Milestone 4. -->
+Best distance from `python app.py retrieve`, top-k 5, `split_documents` chunks:
 
 | Question | In corpus? | Best distance |
 |---|---|---|
-|  |  |  |
+| How long is the wait at Kestrel Commons between 12:15 and 1:00? | yes | 0.173 |
+| How late in the semester can I declare a course pass/fail? | yes | 0.206 |
+| How much does a wash cost in the Aldridge Hall laundry room? | yes | 0.218 |
+| What time does the library close during reading week? | yes | 0.219 |
+| What is the last week I can withdraw from a course? | yes | 0.401 |
+| What is the capital of Mongolia? | no | 0.787 |
+| Who won the 1994 World Cup? | no | 0.847 |
+| What is the recommended dosage of ibuprofen for a headache? | no | 0.849 |
+| How do I write a for loop in Rust? | no | 0.860 |
+| How do I change the oil in a diesel engine? | no | 0.923 |
+
+**The two groups:** in-corpus questions scored 0.173–0.401, and out-of-scope
+questions scored 0.787–0.923. The gap is wide (0.401 to 0.787), so any cutoff
+from 0.41 to 0.78 separates these ten perfectly. For all five in-corpus
+questions, the chunk with the answer came back at rank 1.
+
+**Why 0.5 and not the 0.6 default.** The out-of-scope questions are easy
+because they're about a different world. The harder case is a question about
+campus that campus_life doesn't answer, so I measured a few of those as well:
+
+| Near-miss question (not answered in the corpus) | Best distance | At 0.6 | At 0.5 |
+|---|---|---|---|
+| Does Kestrel Commons serve halal food? | 0.397 | passes | passes |
+| When is the CS 340 final exam date? | 0.438 | passes | passes |
+| How much does a gym membership cost on campus? | 0.529 | passes | **refused** |
+| Is there a swimming pool on campus? | 0.587 | passes | **refused** |
+| What is tuition for out-of-state students? | 0.618 | refused | refused |
+
+At 0.5 the gate catches two more of these. That still leaves 0.099 of room
+above my hardest real question (withdrawal, 0.401), which is the one place 0.5
+could cost me: a question with the answer in the corpus but worded unusually
+might land above 0.5 and be refused.
+
+Some questions the gate can't catch at any cutoff. The halal question (0.397)
+scores closer than my real withdrawal question (0.401), because it names a
+dining hall that really is in the corpus. The grounding instruction in
+`generate.py` handles that case. I left `GROUNDING_INSTRUCTION` unchanged
+because it held when I tested it:
+
+```
+$ python app.py ask "Does Kestrel Commons serve halal food?"
+  (best distance 0.397, cutoff 0.5)
+
+I don't have enough information to answer whether Kestrel Commons serves halal food (sources: dining_kestrel_commons.txt and dining_kestrel_commons_followup.txt).
+```
 
 ## How I Used AI
 
