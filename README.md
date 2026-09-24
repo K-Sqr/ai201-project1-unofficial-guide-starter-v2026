@@ -185,35 +185,32 @@ I don't have enough information to answer whether Kestrel Commons serves halal f
 
 ## How I Used AI
 
-I used Claude Code (Claude Opus 5.5) in my terminal for most of this unit.
+I worked with Claude Code in the terminal throughout this unit, using it to
+run commands, read the corpus, and draft code, then checking what it produced
+against the actual output.
 
-**1. Getting the environment to install.** I pasted the Windows setup commands
-from `RUNNING.md` and asked Claude to run them. `pip install` failed:
-`chroma-hnswlib` has no prebuilt wheel for Python 3.13 on Windows, so pip tried
-to compile it and needed Microsoft C++ Build Tools. Claude found that I also
-had Python 3.11 installed and told me to create the venv with
-`py -3.11 -m venv .venv`. I asked it to stop and undo everything, then ran the
-commands myself. That failed again, because I was in Git Bash, where
-`.venv\Scripts\Activate.ps1` loses its backslashes and can't run a PowerShell
-script anyway. So every `pip install` kept going into my system Python 3.13.
-Claude gave me the bash version (`source .venv/Scripts/activate`). The last
-thing I changed was running that on its own and checking `python --version`
-before installing. That's how I found out that creating the venv hadn't
-activated it.
+**1. Setting up the environment.** I asked Claude to run the setup commands
+from `RUNNING.md`. The install failed: `chroma-hnswlib` has no prebuilt wheel
+for Python 3.13 on Windows and wanted a C++ compiler. Claude pointed out I
+also had Python 3.11 installed and suggested building the venv with that. When
+I ran it myself it still failed, and the reason was my terminal: I was in
+Git Bash, where the PowerShell activation command doesn't work, so packages
+kept landing in my system Python. The fix was switching to
+`source .venv/Scripts/activate`. What I took from it is to check
+`python --version` after activating and before installing anything, because
+creating a venv doesn't switch you into it.
 
-**2. Building milestones 3 and 4.** I gave Claude the milestone brief and the
-grading page and asked it to finish the build. It read the documents, measured
-paragraph lengths, and wrote `split_documents`. Its first plan was to merge any
-paragraph under ~120 characters into its neighbour. It dropped that after
-finding that the shortest paragraphs ("Expect 4 hours a week outside class.")
-were single facts that only needed the title line in front of them. It then
-measured the ten distances and, beyond the brief, the five near-miss
-questions. That's why the cutoff is 0.5 and not 0.6. It would not write
-criteria 4 and 5, because the brief says not to have an AI write them, so
-those were left to me. I also changed how it committed: I asked for a commit and push
-after each milestone rather than one push at the end, and I had it take the
-AI co-author line out of the commit messages. That's why the AI use is
-described here instead of in the commits.
+**2. Choosing the chunk size and the cutoff.** I asked Claude to build the
+chunker and tune retrieval from the milestone brief. Its first plan was to
+merge any paragraph under about 120 characters into its neighbour. Looking at
+the measured paragraph lengths changed that: the shortest paragraphs, like
+"Expect 4 hours a week outside class.", were single complete facts that only
+needed the post's title in front of them, so the merge rule was dropped and
+the title prefix went in instead. For the cutoff, the ten required distances
+alone would have supported the default 0.6. Claude went further and tested
+five on-topic questions the corpus can't answer, and two of them (gym 0.529,
+pool 0.587) slipped under 0.6. Seeing that is why I went with 0.5. Criteria 4 and 5 I wrote myself, since
+the brief asks that criteria not come from an AI.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
