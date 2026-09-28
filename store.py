@@ -18,6 +18,7 @@ rest of the project if they were wrong:
 """
 
 import os
+import re
 import shutil
 from dataclasses import dataclass
 
@@ -178,27 +179,16 @@ def build_index(
     return len(chunks)
 
 
-def search(
+def _embedding_search(
     question: str,
-    top_k: int | None = None,
-    corpus: str | None = None,
-    variant: str = "default",
+    top_k: int,
+    collection,
 ) -> list[Result]:
     """
-    Retrieve the chunks closest in meaning to a question.
-
-    Returns them nearest-first, each with its distance.
+    The starter's original retrieval: nearest neighbours by embedding distance
+    alone. Kept so unit 2's hybrid search has something to compare against —
+    same shape as `chunker.py::fallback_split` next to `split_documents`.
     """
-    top_k = top_k or config.TOP_K
-    name = config.collection_name(corpus, variant)
-
-    try:
-        collection = _client().get_collection(name)
-    except Exception as exc:
-        raise RuntimeError(
-            f"No index called '{name}'. Run `python app.py index` first."
-        ) from exc
-
     raw = collection.query(
         query_embeddings=embed([question]),
         n_results=min(top_k, collection.count()),
@@ -218,6 +208,106 @@ def search(
             )
         )
     return results
+
+
+# ─── Hybrid search (unit 2 improvement) ──────────────────────────────────────
+#
+# Pure embedding search conflates chunks whose wording is generic and
+# near-identical — campus_life's seven housing_*_laundry.txt posts, for
+# example, differ mostly in a building name and two dollar figures. A question
+# that names a building gives BM25 an exact keyword match on that name; plain
+# embeddings only have the surrounding sentence, which several buildings
+# share almost word for word. Combining the two catches what either one alone
+# misses.
+#
+# BM25OKapi is rebuilt from the whole collection on first use per corpus/
+# variant and cached — cheap at this corpus's size (183 chunks) and avoids a
+# second on-disk index.
+
+_bm25_cache: dict[str, tuple] = {}
+
+BM25_WEIGHT = 0.5   # how much lexical overlap counts against embedding similarity
+POOL_MULTIPLIER = 4  # how much wider than top_k the re-ranked candidate pool is
+
+
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _bm25_for(name: str, collection):
+    """BM25 index over every chunk in this collection, id-aligned."""
+    if name in _bm25_cache:
+        return _bm25_cache[name]
+
+    from rank_bm25 import BM25Okapi
+
+    data = collection.get(include=["documents", "metadatas"])
+    ids = data["ids"]
+    docs = data["documents"]
+    bm25 = BM25Okapi([_tokenize(d) for d in docs])
+
+    cached = (bm25, ids)
+    _bm25_cache[name] = cached
+    return cached
+
+
+def _hybrid_search(
+    question: str,
+    top_k: int,
+    name: str,
+    collection,
+) -> list[Result]:
+    """
+    Re-rank a wider embedding candidate pool by blending embedding similarity
+    with BM25 lexical overlap, then keep the top_k.
+
+    Distances on the returned Results are still real embedding distances —
+    gate.py's cutoff was calibrated against those, and re-ranking which chunk
+    comes first doesn't change what "close" means.
+    """
+    pool_size = min(collection.count(), max(top_k * POOL_MULTIPLIER, 20))
+    pool = _embedding_search(question, pool_size, collection)
+    if not pool:
+        return pool
+
+    bm25, ids = _bm25_for(name, collection)
+    scores = bm25.get_scores(_tokenize(question))
+    scores_by_id = dict(zip(ids, scores))
+    max_bm25 = max(scores) if len(scores) else 0.0
+
+    def combined_score(result: Result) -> float:
+        sim_embed = 1.0 - result.distance
+        bm25_raw = scores_by_id.get(result.label, 0.0)
+        bm25_norm = (bm25_raw / max_bm25) if max_bm25 > 0 else 0.0
+        return (1 - BM25_WEIGHT) * sim_embed + BM25_WEIGHT * bm25_norm
+
+    pool.sort(key=combined_score, reverse=True)
+    return pool[:top_k]
+
+
+def search(
+    question: str,
+    top_k: int | None = None,
+    corpus: str | None = None,
+    variant: str = "default",
+) -> list[Result]:
+    """
+    Retrieve the chunks closest to a question, hybrid-ranked (unit 2 — see
+    `_hybrid_search`): embedding similarity blended with BM25 keyword overlap,
+    over a wider embedding candidate pool. Returns them nearest-first, each
+    with its (embedding) distance.
+    """
+    top_k = top_k or config.TOP_K
+    name = config.collection_name(corpus, variant)
+
+    try:
+        collection = _client().get_collection(name)
+    except Exception as exc:
+        raise RuntimeError(
+            f"No index called '{name}'. Run `python app.py index` first."
+        ) from exc
+
+    return _hybrid_search(question, top_k, name, collection)
 
 
 def index_exists(corpus: str | None = None, variant: str = "default") -> bool:

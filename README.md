@@ -391,34 +391,69 @@ containment.
 
 ## The Improvement
 
-**What I changed:**
+**What I changed:** Hybrid search. `store.py::search` used to rank purely by
+embedding distance. It now pulls a wider candidate pool (20 chunks instead of
+5) with the same embedding search — renamed `_embedding_search`, kept intact
+— then re-ranks that pool by a weighted blend of embedding similarity and a
+BM25 keyword-overlap score (`_hybrid_search`, `BM25_WEIGHT = 0.5`), and
+returns the top 5. The distance shown on every result is still the real
+embedding distance; only the ranking changed, so `gate.py`'s cutoff (still
+0.5, unchanged) is comparing the same kind of number it always was. One
+side effect worth naming: results are no longer guaranteed to come back in
+strict nearest-by-distance order — that's what lets Tamsin Court's chunk
+outrank Fenwick Court's despite a slightly larger distance, which is the
+entire point, but it does mean `tools/smoke_test.py`'s "results are ordered
+nearest first" staff check now fails on purpose. Everything else there still
+passes.
 
-**Why I picked it:**
-
-<!-- Connect it to a specific diagnosis above in one sentence. If you can't,
-     you picked a fix because it sounded impressive. -->
+**Why I picked it:** It's aimed straight at the criterion 5 diagnosis.
+Embedding similarity alone couldn't reliably separate "Tamsin Court" from
+"Fenwick Court" because their bodies read alike; BM25 gives an exact token
+match on the building name itself, which embedding similarity has no way to
+weight as heavily as a whole paragraph of shared wording. `rank-bm25` was
+already in `requirements.txt` for exactly this option.
 
 ### Run Log — After
 
-<!-- Same format, same five criteria, three runs each.
-     `python run_eval.py --label after` -->
+Runs come from `python run_eval.py --label after`
+(`results/run_2026-09-28_1647_after.md`) for criteria 1–3, and from
+`python app.py retrieve`, by hand, for criterion 5
+(`results/criteria_4_5_evidence.md`). Criterion 4 is untouched by this
+change — chunking wasn't part of the improvement — so I didn't re-run it;
+same 9/10 as before.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks read as one complete, on-topic thought | 9 of 10 | 9/10 | 9/10 | 9/10 | MET (unchanged) |
+| 5. Laundry disambiguation, #1-ranked chunk names the right building | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
 
-**Did it help?**
+```
+$ python app.py retrieve "How much does a wash cost in Tamsin Court?"
+1   0.3923   housing_tamsin_court.txt         Tamsin Court — what it's actually like  Laundry cost...
+2   0.4736   housing_tamsin_court_laundry.txt Laundry in Tamsin Court  Best time to do laundry her...
+3   0.4719   housing_innisfree_hall.txt       Innisfree Hall — what it's actually like  Laundry co...
+4   0.4140   housing_tamsin_court_laundry.txt Laundry in Tamsin Court  Machines take in-unit washe...
+5   0.3687   housing_fenwick_court.txt        Fenwick Court — what it's actually like  Laundry cos...
+```
 
-<!-- Say plainly whether it did, and how you know. If it made things worse,
-     say that — a change that backfired, honestly reported, earns full credit
-     and is more interesting than one that worked. What matters is that you can
-     tell.
+Tamsin Court's own chunk is rank 1 now. Full output for all five buildings,
+before and after, is in `results/criteria_4_5_evidence.md`.
 
-     Milestone 4. -->
+**Did it help?** Yes, on exactly the thing it targeted, with no regression
+anywhere else. Criterion 5 went from 4/5 (MISSED) to 5/5 (MET) — the one
+building that failed before (Tamsin Court) now ranks correctly, and the four
+that already worked still do. Criteria 1–3 stayed at 5/5 across the board;
+the out-of-scope distances shifted slightly (e.g. the Mongolia question moved
+from 0.787 to 0.826) because the candidate pool BM25 re-ranks over is wider
+than before, but not by enough to threaten the 0.5 cutoff — the gate still
+refused 5/5. The 15 generated answers for criteria 1–2 read the same as
+before, word-for-word similar, still all correct and all sourced. I can't
+rule out that a different corpus or a different pair of near-duplicate names
+would need a different `BM25_WEIGHT` than 0.5 — I picked that value directly,
+I didn't sweep it — but on this corpus, this fix, measured, helped.
 
 ## What's Still Broken
 

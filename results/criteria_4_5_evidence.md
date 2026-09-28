@@ -109,11 +109,15 @@ question about that specific building on its own, so I counted it as clean.
 
 ## Criterion 5 — laundry building disambiguation, rank 1 only
 
-Produced by: `app.py::cmd_retrieve`, retrieval from `store.py::search`.
-Five housing buildings whose `housing_*_laundry.txt` posts share near-
-identical body wording (two of the seven, Calder Annexe and Fenwick Court,
-are word-for-word identical except the building name and the two dollar
+Produced by: `app.py::cmd_retrieve`, retrieval from `store.py::search`
+(plain embedding search below; hybrid as of the unit 2 improvement — see
+the README's "The Improvement" and the second block further down). Five
+housing buildings whose `housing_*_laundry.txt` posts share near-identical
+body wording (two of the seven, Calder Annexe and Fenwick Court, are
+word-for-word identical except the building name and the two dollar
 figures).
+
+### Before the improvement (plain embedding search)
 
 ```
 $ python app.py retrieve "How much does a wash cost in Calder Annexe?"
@@ -163,6 +167,30 @@ right. A question that only asked for the single best match, or a smaller
 top-k, would have handed the model the wrong building's price with nothing
 to override it.
 
-<!-- The "after" section — post-improvement retrieval for the same five
-     buildings — is added lower down once the hybrid-search change lands.
-     See the README's "The Improvement" for that comparison. -->
+### After the improvement (hybrid: embedding + BM25)
+
+```
+$ python app.py retrieve "How much does a wash cost in Tamsin Court?"
+1   0.3923   housing_tamsin_court.txt         Tamsin Court — what it's actually like  Laundry cost...
+2   0.4736   housing_tamsin_court_laundry.txt Laundry in Tamsin Court  Best time to do laundry her...
+3   0.4719   housing_innisfree_hall.txt       Innisfree Hall — what it's actually like  Laundry co...
+4   0.4140   housing_tamsin_court_laundry.txt Laundry in Tamsin Court  Machines take in-unit washe...
+5   0.3687   housing_fenwick_court.txt        Fenwick Court — what it's actually like  Laundry cos...
+
+$ python app.py retrieve "How much does a wash cost in Calder Annexe?"
+1   0.1871   housing_calder_annexe.txt        Calder Annexe — what it's actually like  Laundry cos...
+
+$ python app.py retrieve "How much does a wash cost in Fenwick Court?"
+1   0.1522   housing_fenwick_court.txt        Fenwick Court — what it's actually like  Laundry cos...
+
+$ python app.py retrieve "How much does a wash cost in Morrow House?"
+1   0.1930   housing_morrow_house.txt         Morrow House — what it's actually like  Laundry cost...
+
+$ python app.py retrieve "How much does a wash cost in Old Brewhouse?"
+1   0.1636   housing_old_brewhouse.txt        Old Brewhouse — what it's actually like  Laundry cos...
+```
+
+Tamsin Court's own chunk is rank 1 now. The exact keyword "tamsin" only
+appears in Tamsin Court's own chunks, so BM25 pulls it up regardless of how
+close the generic body text of Fenwick Court's chunk sits in embedding space.
+The other four buildings, already correct, stay correct. **5 of 5.**
