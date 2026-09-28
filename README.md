@@ -209,8 +209,11 @@ needed the post's title in front of them, so the merge rule was dropped and
 the title prefix went in instead. For the cutoff, the ten required distances
 alone would have supported the default 0.6. Claude went further and tested
 five on-topic questions the corpus can't answer, and two of them (gym 0.529,
-pool 0.587) slipped under 0.6. Seeing that is why I went with 0.5. Criteria 4 and 5 I wrote myself, since
-the brief asks that criteria not come from an AI.
+pool 0.587) slipped under 0.6. Seeing that is why I went with 0.5. **Note,
+added in unit 2:** I never actually got to criteria 4 and 5 before unit 1
+ended — they sat as blank templates, and the sentence that used to be here
+claiming I'd written them myself was wrong. See the unit 2 entry below for
+what actually happened with them.
 
 <!-- ── Stretch features ─────────────────────────────────────────────────────
      Doing one? Say so here BEFORE you start. A feature this README never
@@ -227,27 +230,94 @@ the brief asks that criteria not come from an AI.
 
 ## Run Log — Before
 
-<!-- Your five criteria, three runs each. `python run_eval.py --label before`
-     runs the questions, puts the OUT_OF_SCOPE ones through the gate, and
-     writes it all into results/ for you. Targets come from criteria.md; the
-     verdict column is your call.
+Criteria 4 and 5 were left blank at the end of unit 1 (see the note in
+`criteria.md`) — I wrote them at the start of this unit, before running
+anything below, grounded in the Sample Chunks and near-duplicate-laundry-post
+observations that were already in the README from Milestone 3.
 
-     Criterion 3 is measured in one deterministic pass rather than three, so
-     the same number goes in all three run columns. That's correct, not lazy.
+Runs come from `python run_eval.py --label before`
+(`results/run_2026-09-28_1635_before.md`) for criteria 1–3, and from
+`python app.py chunks` / `python app.py retrieve`, by hand, for criteria 4–5
+(`results/criteria_4_5_evidence.md`). `run_eval.py` has no `scorer.py` to
+grade against yet, so I read every answer myself against the `expects` phrase
+in `questions.py`.
 
-     Milestone 1. -->
+Criteria 3, 4, and 5 are single deterministic passes — retrieval and the gate
+don't change between identical calls with nothing edited in between — so the
+same number goes in all three run columns, the same way the assignment says
+is correct for criterion 3.
 
 | Criterion | Target | Run 1 | Run 2 | Run 3 | Verdict |
 |---|---|---|---|---|---|
-| 1. Retrieved chunk contains the answer | 4 of 5 |  |  |  |  |
-| 2. Every answer names a source | 5 of 5 |  |  |  |  |
-| 3. Gate stops out-of-corpus questions | 4 of 5 |  |  |  |  |
-| 4. | | | | | |
-| 5. | | | | | |
+| 1. Retrieved chunk contains the answer | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 2. Every answer names a source | 5 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 3. Gate stops out-of-corpus questions | 4 of 5 | 5/5 | 5/5 | 5/5 | MET |
+| 4. Sampled chunks read as one complete, on-topic thought | 9 of 10 | 9/10 | 9/10 | 9/10 | MET |
+| 5. Laundry disambiguation, #1-ranked chunk names the right building | 5 of 5 | 4/5 | 4/5 | 4/5 | MISSED |
 
-<!-- Underneath, paste the REAL output for each criterion from one of your
-     runs — the actual text your system produced, not a description of it.
-     Name the file and function that produced it. -->
+### Real output
+
+**Criterion 1 & 2**, from `results/run_2026-09-28_1635_before.md`, produced by
+`run_eval.py::main` (retrieval: `store.py::search`; generation:
+`generate.py::answer_from_chunks`):
+
+```
+### How much does a wash cost in the Aldridge Hall laundry room? — run 1
+
+- Best distance: 0.2180 (passed the gate)
+- Sources retrieved: housing_aldridge_hall.txt, housing_aldridge_hall_laundry.txt, housing_innisfree_hall.txt, housing_innisfree_hall_laundry.txt, housing_old_brewhouse.txt
+
+A wash in the Aldridge Hall laundry room costs $1.75.
+
+Source: housing_aldridge_hall.txt (and housing_aldridge_hall_laundry.txt)
+```
+
+**Criterion 3**, from the same file, produced by
+`run_eval.py::check_out_of_scope` (`gate.py::check`):
+
+```
+## The relevance gate on out-of-corpus questions
+
+Produced by `run_eval.py::check_out_of_scope`, cutoff 0.5. Refused 5 of 5.
+
+| Out-of-scope question | Best distance | Gate |
+|---|---|---|
+| What is the capital of Mongolia? | 0.787 | refused |
+| How do I change the oil in a diesel engine? | 0.923 | refused |
+| Who won the 1994 World Cup? | 0.847 | refused |
+| What is the recommended dosage of ibuprofen for a headache? | 0.849 | refused |
+| How do I write a for loop in Rust? | 0.860 | refused |
+```
+
+**Criterion 4**, from `results/criteria_4_5_evidence.md`, produced by
+`app.py::cmd_chunks` (chunks from `chunker.py::split_documents`):
+
+```
+======================================================================
+Chunk 2  |  source: course_biol_160.txt#0  |  produced by: chunker.py::split_documents
+======================================================================
+BIOL 160 Cell Biology
+
+I lived here my sophomore year. Format is lecture three times a week with a weekly lab. Assessment: four unit tests and a cumulative final. Not curved.
+```
+
+That's the one chunk of the ten I marked flawed — a sentence that reads like
+it wandered in from a housing post, sitting in a course post about Cell
+Biology. The other nine read cleanly; the full sample is in
+`results/criteria_4_5_evidence.md`.
+
+**Criterion 5**, from the same file, produced by `app.py::cmd_retrieve`
+(retrieval: `store.py::search`):
+
+```
+$ python app.py retrieve "How much does a wash cost in Tamsin Court?"
+1   0.3687   housing_fenwick_court.txt        Fenwick Court — what it's actually like  Laundry cos...
+2   0.3923   housing_tamsin_court.txt         Tamsin Court — what it's actually like  Laundry cost...
+```
+
+Fenwick Court's chunk outranks Tamsin Court's own chunk by 0.024 — the one
+miss among the five buildings tested. Calder Annexe, Fenwick Court, Morrow
+House, and Old Brewhouse all ranked their own building first.
 
 ## Verdicts
 

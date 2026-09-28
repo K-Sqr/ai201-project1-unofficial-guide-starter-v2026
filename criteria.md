@@ -70,41 +70,55 @@ slip through, its best distance would have to drop from at least 0.787 to below
 
 ## 4. Something about your chunks
 
-<!-- YOU WRITE THIS ONE.
+> **Note on criteria 4 and 5:** I left these two as unfilled templates at the
+> end of unit 1 — I wrote 1–3 and never came back to finish the other two.
+> I'm completing them now, before touching `run_eval.py`'s output for this
+> unit, using only what Milestone 3 already established: the Sample Chunks
+> section of the README (five chunks, all clean) and the fact that
+> `campus_life` has seven near-identical `housing_*_laundry.txt` posts,
+> both written and committed before this unit started. I did look at a couple
+> of extra retrieval examples while shaping criterion 5's wording below, so
+> I'm not claiming these are blind the way 1–3 were — just that they're
+> grounded in old evidence, not this unit's QUESTIONS run.
 
-     How would you know if your chunks were the right size? Name something
-     countable or observable.
-
-     Examples of the right shape — don't copy these, they should come from
-     what you actually saw in Milestone 3:
-       - "At least 4 of 5 sampled chunks read as a complete thought, with no
-          sentence cut in half at either end."
-       - "No chunk is shorter than 200 characters, since anything below that
-          in my corpus turned out to be a heading with no content under it." -->
-
-
+For at least 9 of 10 chunks sampled with `python app.py chunks -n 10`, the
+chunk reads as one complete, on-topic thought — no sentence cut in half at a
+chunk boundary, and no sentence that belongs to a different topic than the
+one the title names.
 
 **Why this target:**
-
-
+The five chunks I sampled and pasted into the README in Milestone 3 all read
+cleanly — that's what made me confident in the title-prefix, one-paragraph
+strategy in the first place. I'm allowing exactly one exception in a bigger
+sample of 10, because `campus_life`'s posts are informal, first-person
+student writing, and a paragraph occasionally drifts into an aside that
+doesn't belong to its own heading. That's a content property, not something
+my chunker controls — see criterion 5 in `chunker.py`'s docstring about what
+Milestone 3 does and doesn't fix.
 
 ---
 
 ## 5. Your choice
 
-<!-- YOU WRITE THIS ONE TOO.
-
-     Pick something you actually care about getting right. It could be about
-     speed, about refusals, about a particular kind of question your corpus
-     handles badly, about source attribution being correct rather than merely
-     present — anything, as long as it names a number or an observable
-     outcome. -->
-
-
+For laundry-cost questions naming five different housing buildings whose
+posts share near-identical body wording (Calder Annexe, Fenwick Court,
+Morrow House, Old Brewhouse, Tamsin Court), the #1-ranked retrieved chunk
+names the correct building, in 5 of 5.
 
 **Why this target:**
+This is deliberately stricter than criterion 1's "somewhere in the top
+results" — I'm testing whether the fix I actually built in Milestone 3 (the
+title prefix on every chunk) does what I designed it to do: let retrieval
+tell seven near-identical buildings apart. If the title prefix works as
+intended, every one of these five should rank its own building first,
+because each title names one specific, unambiguous building — there's no
+reason to allow a miss the way I do in criterion 1, where the ambiguity is
+inherent to the corpus rather than something my own design was supposed to
+fix. Two of the seven laundry posts (Calder Annexe and Fenwick Court) are
+word-for-word identical in their bodies, so this is the sharpest test I have
+of whether the title prefix is actually carrying the weight I think it is.
 
-
+---
 
 ---
 
