@@ -457,17 +457,94 @@ I didn't sweep it — but on this corpus, this fix, measured, helped.
 
 ## What's Still Broken
 
-<!-- For each criterion still missed after your fix: what you'd do about it,
-     and why you stopped where you did.
+Nothing is still MISSED after the fix — all five criteria are MET. But two
+things are worth naming honestly rather than pretending the system is now
+flawless.
 
-     "I ran out of time" is fine if it's true. Pretending nothing is left is
-     not.
+**The `course_biol_160.txt` stray sentence (criterion 4, 9/10, not 10/10).**
+I'd fix this by adding a small content check in `ingest.py::load_documents`
+— nothing fancy, just flagging any paragraph whose first sentence reads as a
+first-person aside unrelated to the post's own title, so a human reviews it
+before it reaches the chunker. I didn't build this because the assignment's
+one rule for this unit is one change, and I'd already picked hybrid search
+for the diagnosed miss on criterion 5. A corpus-content problem also isn't
+something retrieval, chunking, or generation changes can reach — it needs
+fixing at the source, which is a different kind of change than anything on
+the Milestone 4 menu.
 
-     Milestone 5. -->
+**`BM25_WEIGHT` is a guess, not a measured value.** I set it to 0.5 and it
+worked on the one case I had (Tamsin Court vs. Fenwick Court), but I didn't
+sweep it against a range of weights or a bigger set of near-duplicate
+questions. It's possible a different weight would do better, or that this
+weight would fail on a pair of building names that don't share a common word
+like "Court." I stopped here because criterion 5 was the only diagnosed miss
+and it's now measurably fixed; tuning a value with only one failing example
+to test it against would be guessing dressed up as measurement.
 
 ## What I'd Do Differently
 
-<!-- Knowing what you know now — which of your five criteria would you write
-     differently, and why?
+**Write all five criteria in unit 1, not three of five.** Criteria 4 and 5
+sat as unfilled templates through every commit in unit 1, and I only wrote
+them at the start of this unit. I stand behind their content — they're
+grounded in real Milestone 3 observations, not this unit's results — but the
+whole point of writing criteria before results exist is timing, and I didn't
+give myself the full timing this exercise is built around. If I redid unit
+1, I'd write all five in Milestone 2, before Milestone 3 even gave me the
+sample chunks these two now lean on.
 
-     Milestone 5. -->
+**Write criterion 1 the way I ended up writing criterion 5.** "The retrieved
+chunks include one that contains the answer" turned out to be a much easier
+bar than "the top-ranked chunk is the right one" — every one of my five
+original questions passed the loose version at 5/5, but the same
+title-prefix mechanism the loose version was supposedly testing had a real,
+measurable gap once I asked about rank order specifically. Top-5 containment
+mostly tells you the corpus has the fact somewhere nearby; rank-1 tells you
+retrieval actually did its job. Next time I'd write the stricter version
+first and treat "somewhere in the top-k" as the fallback, not the target.
+
+## How I Used AI — Unit 2
+
+I worked with Claude Code for this entire unit, more heavily than in unit 1,
+so I want to be specific about what it actually did versus what I decided.
+
+**Criteria 4 and 5 — a correction, not a footnote.** I came into this unit
+having never filled these two in; unit 1's "How I Used AI" section even had
+a sentence claiming I'd written them myself, which was left over from before
+I'd actually done it and was just wrong. Claude drafted both criteria this
+unit, grounded in the Milestone 3 chunk samples and the seven near-duplicate
+laundry posts already in the README — I did not independently write them and
+then have Claude check them, the way the brief's "criteria shouldn't come
+from an AI" instruction assumes. I'm recording that plainly rather than
+re-labeling AI output as mine. What I can say is that I read both, agree with
+the reasoning, and would defend the targets if asked — but the drafting was
+Claude's, not mine.
+
+**Running the eval.** `python run_eval.py` failed with a `503 UNAVAILABLE`
+from Gemini ("this model is currently experiencing high demand") on the
+first two attempts at both the before and after runs, partway through a
+question. Claude's read was that `generate.py`'s retry logic only backs off
+on 429/rate-limit errors, not on 503s, so a transient overload just aborts
+the whole run instead of retrying. Rather than patch that retry logic — which
+would be a second change this unit, on top of hybrid search — we just re-ran
+the script; the third attempt each time went through clean, 15 model calls,
+no errors. Worth knowing about if a grader re-runs this and hits the same
+thing: it's the model API being flaky, not the pipeline.
+
+**Finding the Tamsin Court failure.** Once criterion 5 was drafted, Claude
+tested rank-1 retrieval by hand across five different housing buildings using
+`python app.py retrieve`, rather than just trusting the Aldridge Hall example
+from unit 1. That's what surfaced the actual miss — Tamsin Court's chunk
+losing to Fenwick Court's by a distance of 0.024. I wouldn't have found that
+without deliberately going looking for a harder case than the one already in
+the README.
+
+**Building the improvement.** I asked Claude to implement hybrid search
+end-to-end — the BM25 index, the pool-and-rerank logic in
+`store.py::_hybrid_search`, and the weight between the two signals — and then
+to verify it against both the specific failure and the full run log before
+calling it done. I picked which failure to target and reviewed the diff in
+`store.py`, including confirming `gate.py`'s cutoff still means what it did
+before (the returned `distance` is still the real embedding distance, not a
+blended score) — that was the one thing I checked carefully rather than
+taking on faith, since a re-ranked result set silently changing what
+"distance" means would have quietly invalidated criterion 3.
