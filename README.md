@@ -321,42 +321,73 @@ House, and Old Brewhouse all ranked their own building first.
 
 ## Verdicts
 
-<!-- MET or MISSED for each of the five, against the target you wrote last
-     unit — not a new one. Plus a sentence on how you decided. That sentence
-     matters most where it was close.
-
-     If your target said 4 of 5 and your runs came out 4, 3, 4, that's a MISS.
-     The target has to hold, not show up occasionally.
-
-     Milestone 2. -->
-
 | # | Criterion | Verdict | How I decided |
 |---|---|---|---|
-| 1 |  |  |  |
-| 2 |  |  |  |
-| 3 |  |  |  |
-| 4 |  |  |  |
-| 5 |  |  |  |
+| 1 | Retrieved chunk contains the answer (target 4/5) | MET | I read all three runs for all five questions against the `expects` phrase in `questions.py` (e.g. "20 to 25 minutes," "week eight," "$1.75," "week ten," "10pm"). Every run, every question, the answer was in there. 5/5 beats the 4/5 target with no room for a bad read either way. |
+| 2 | Every answer names a source (target 5/5) | MET | Same 15 answers. Every single one names at least one `.txt` file, most name two. This one has no room to be close — either the filename is in the text or it isn't, and it always was. |
+| 3 | Gate stops out-of-corpus questions (target 4/5) | MET | `run_eval.py::check_out_of_scope` refused all five OUT_OF_SCOPE questions, at distances 0.787–0.923, comfortably above the 0.5 cutoff. This is the same deterministic check every run, so 5/5 isn't luck — it's the same measurement as Milestone 4 last unit, just re-run against unchanged chunks. |
+| 4 | Sampled chunks read as one complete thought (target 9/10) | MET | I read all 10 sampled chunks myself. Nine name their own topic and hold a complete fact with nothing cut off. The tenth (`course_biol_160.txt#0`) opens with a sentence that doesn't belong to a course post at all — see Diagnoses below. 9/10 exactly meets the target; it isn't a comfortable margin. |
+| 5 | Laundry disambiguation, #1 chunk names the right building (target 5/5) | MISSED | Four of five buildings ranked their own chunk first. Tamsin Court didn't — `housing_fenwick_court.txt` came back at rank 1, ahead of Tamsin Court's own chunk, by a distance gap of only 0.024. The target was 5/5 specifically because I designed the title-prefix chunking to solve exactly this problem, so anything short of all five is the fix not fully doing its job. This is the closest call in the whole run log, which is exactly why I didn't round it up. |
 
 ## Diagnoses
 
-<!-- For each miss: which stage caused it, and how. The stage alone isn't
-     enough — you need the mechanism.
+**Criterion 5 — the only real miss. Stage: embedding.**
 
-     Not a diagnosis: "Question 3 didn't work."
-     A diagnosis:     "Question 3 asks about laundry costs. The answer is in
-                       one sentence that got split across two chunks, so
-                       neither chunk on its own contains it."
+The question "How much does a wash cost in Tamsin Court?" retrieves
+`housing_fenwick_court.txt` at rank 1 (distance 0.3687) ahead of
+`housing_tamsin_court.txt` (distance 0.3923). The gap is 0.024 — small enough
+that this isn't the embedding model being obviously wrong, it's the embedding
+model doing exactly what cosine similarity over sentence embeddings does:
+reward text that reads alike. "Tamsin Court" and "Fenwick Court" are both
+two-word names ending in "Court," and — this is the part that actually
+causes it — Fenwick Court's and Calder Annexe's laundry paragraphs are
+word-for-word identical to each other ("Machines take $2.00 wash, $1.75 dry,
+app-based. There are eight washers and six dryers..."), which pulls the whole
+generic-housing-paragraph region of embedding space tighter together than
+the two-word title alone can pull it apart. The title prefix I added in
+Milestone 3 helps — four of five buildings separate correctly — but it's a
+handful of extra tokens competing against a whole paragraph of near-duplicate
+body text, and for one pair of names similar enough to each other ("Tamsin"
+and "Fenwick" are both single, uncommon proper nouns the embedding model has
+comparatively little signal for) it isn't enough to win.
 
-     The five stages: loading → chunking → embedding → retrieval → generation.
+This didn't break the actual answer — see `results/criteria_4_5_evidence.md`
+— because top-k is 5 and the correct chunk was still in context, so
+generation read past the wrong rank-1 chunk. That's a real save, but it's the
+model doing retrieval's job with weaker material, not evidence retrieval is
+fine. A smaller top-k, or a query where the correct chunk fell outside the
+top 5 entirely, would not have been saved the same way.
 
-     Look for a pattern. If three misses all ask about numbers, that's one
-     problem, not three.
+**Criterion 4 — a near-miss worth naming even though it technically met.**
 
-     Missed nothing? Say so, then say honestly whether your targets were set
-     low, and which one you'd tighten and to what.
+`course_biol_160.txt#0` reads: *"BIOL 160 Cell Biology. I lived here my
+sophomore year. Format is lecture three times a week..."* That second
+sentence belongs to a housing post, not a course post — I'd guess a
+copy-paste artifact from whoever wrote this corpus, not anything my pipeline
+did. Stage: **loading**. `ingest.py::load_documents` reads the file exactly
+as it sits on disk with no content validation, and nothing downstream — not
+`split_documents`, not embedding, not retrieval — has any way to know a
+sentence doesn't belong where it is. Chunking correctly kept the paragraph
+whole; the paragraph itself is what's wrong. Since this is a corpus-content
+problem, not a boundary problem, I'm not counting it against Milestone 3's
+chunker, but a real fix would live in `ingest.py` — a light content check
+before chunks are built — which is exactly why it's the one thing I list
+under What's Still Broken rather than in the improvement I actually made.
 
-     Milestone 3. -->
+**Pattern:** both misses are variations on the same underlying issue —
+sentences whose subject matter doesn't match their surrounding title/topic
+strongly enough for the current pipeline to notice. Criterion 5's version is
+solvable at the retrieval stage (add a lexical signal that catches exact
+name matches); criterion 4's version is a corpus-content problem no
+retrieval-stage or chunking-stage fix reaches.
+
+**If nothing had missed:** it didn't come to that here, but for the record —
+criteria 1–3 all landed at 5/5 against targets of 4/5, 5/5, and 4/5, which is
+a real margin, not a coin flip. If I were tightening one of those for
+next time, it'd be criterion 1: "somewhere in the top 5" turned out to be a
+much easier bar than "ranked first," which is exactly what criterion 5 (and
+this diagnosis) found once I actually looked at rank order instead of just
+containment.
 
 ## The Improvement
 
